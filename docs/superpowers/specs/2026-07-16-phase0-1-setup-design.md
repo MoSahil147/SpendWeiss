@@ -56,9 +56,9 @@ Root level `.gitignore` covering: `.venv/`, `.env`, `__pycache__/`, `*.pyc`, `.D
 
 Three JSON files under `backend/data/`:
 
-- `cards.json`: three cards, each with a name, annual fee, and reward rates per spending category (for example dining, groceries, travel, online shopping). Reward rates are deliberately uneven across cards so no single card dominates every category.
-- `offers.json`: three time limited offers, each tied to a card and a merchant or category, with a validity window.
-- `transactions.json`: around fifteen past transactions, each with a date, merchant, category, amount and the card used.
+- `cards.json`: six real Indian credit cards (HDFC Millennia, Axis Bank Magnus, ICICI Amazon Pay, HDFC Infinia, SBI Cashback, IDFC FIRST Select), each with an issuer, annual fee, and reward rates per spending category (dining, groceries, travel, online shopping, fuel, other), simplified from each card's real, published reward structure rather than invented. This includes realistic details such as most cards excluding fuel from reward earning entirely, and IDFC FIRST Select earning far less than the cashback focused cards, its real advantage being a zero annual fee rather than reward rate.
+- `offers.json`: six time limited offers, one per card so every card in the catalogue has a promotion, each tied to a real merchant and grounded in a real promotion type for that card, with a validity window.
+- `transactions.json`: twenty four past transactions, each with a date, merchant, category, amount and the card used, spanning all six cards and all six spending categories across twelve distinct Indian merchants.
 
 ## Phase 1: the ReAct loop
 
