@@ -145,3 +145,22 @@ This is the best demonstration this project has produced of why a critic node is
 
 **Next up:**
 Phase 6 splits into a multi agent setup: the current agent becomes `CardOptimizerAgent`, a new `SubscriptionHunterAgent` scans `transactions.json` for recurring charges, and a `Supervisor` node routes each query to the right specialist, or both.
+
+---
+
+## Phase 6: Multi-agent supervisor (2026-07-17)
+
+**What I built:**
+`transactions.json` expanded from 24 to 31 rows: Netflix (Rs 649, five monthly occurrences March through July) and a new merchant, Cult.fit (Rs 999, three monthly occurrences), giving the new specialist genuine recurring patterns to find. `backend/phase6_multiagent/subscription_hunter.py`: `find_recurring_charges()`, a plain Python function grouping transactions by exact `(merchant, amount)` and flagging anything with 2 or more occurrences, wrapped as a tool, and `SubscriptionHunterAgent`, built with `create_agent`, deliberately simpler than `CardOptimizerAgent`, one tool, no memory, no critic. `backend/phase6_multiagent/supervisor.py`: `classify_query` (one plain `ChatGroq` call, no tools), `_normalise_classification` (a pure fallback function), and `dispatch`, routing to `CardOptimizerAgent`, `SubscriptionHunterAgent`, or both in sequence. `backend/phase6_multiagent/agent.py` mirrors the established interactive loop, printing `Routed to: <classification>` before each specialist's trace. Verified end to end with three queries covering all three routes.
+
+**Key decisions:**
+`find_recurring_charges` groups by exact `(merchant, amount)`, not by merchant alone. This turned out to matter more than expected: BigBasket, Swiggy, IndiGo and other genuinely repeated merchants in the data do NOT show up as recurring charges, because their amounts vary transaction to transaction, a real grocery bill is never identical twice. Only Netflix and Cult.fit, whose amounts are fixed every time, get flagged. This is a better signal than filtering by category or asking the model to guess, and it fell out of the exact matching choice rather than needing extra logic. Confirmed with the user before building: `SubscriptionHunterAgent` reviews the full transaction history itself rather than being handed a category filter, and `both` queries dispatch sequentially in one function rather than a true parallel graph fan-out with a join, which would have been meaningfully more complex to get right on a first pass.
+
+**Gotchas and bugs hit:**
+None new in the code. The three query end to end run did stress test something from Phase 5 in a way no earlier run had: the `both` query's `CardOptimizerAgent` call produced two consecutive `REVISE` verdicts from the critic. The one revision cap worked exactly as designed, the first `REVISE` triggered an actual loop back to `reason`, the second `REVISE` was still shown honestly in the trace (the critic's raw text is always printed) but `critic_verdict` was forced to `"approved"` internally once the cap was hit, so the graph stopped looping and moved on to `SubscriptionHunterAgent` as the `both` dispatch required. Good confirmation that the cap and the display of the critic's opinion are correctly decoupled, exactly the design intent from Phase 5.
+
+**What I learned:**
+Not every specialist needs the same machinery. `CardOptimizerAgent` is a five node hand built graph with memory and a critic, `SubscriptionHunterAgent` is one tool behind `create_agent`, and the difference was a deliberate choice reflecting how much correction and context each task actually needs, not laziness. The `both` query end to end run was the clearest evidence yet that this project's message passing pattern (each specialist receives the growing session `messages` list and returns its own grown version) composes correctly even across genuinely different graph shapes, `CardOptimizerAgent`'s `AgentState` with `critique_count` and `SubscriptionHunterAgent`'s plain `create_agent` state, as long as both agree on the one field that actually crosses the boundary, `messages`.
+
+**Next up:**
+Phase 7 adds human in the loop: LangGraph's `interrupt()` pauses for explicit approval on purchases above a threshold or a subscription cancellation, plus LangSmith tracing wired up for a shareable trace link.
