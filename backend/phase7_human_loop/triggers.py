@@ -9,7 +9,7 @@ LARGE_PURCHASE_THRESHOLD = 5000
 # Matches "₹5000", "₹5,000", "Rs 5000", "Rs. 5,000", "Rs.5000", "5000 rupees".
 # Commas inside the number are handled by stripping them before int().
 _RUPEE_PATTERN = re.compile(
-    r"(?:₹\s?|rs\.?\s?)([\d,]+)|([\d,]+)\s?rupees",
+    r"(?:₹\s?|\brs\.?\s?)([\d,]+)|([\d,]+)\s?rupees",
     re.IGNORECASE,
 )
 
