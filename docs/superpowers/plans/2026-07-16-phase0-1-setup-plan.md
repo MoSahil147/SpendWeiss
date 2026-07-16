@@ -11,7 +11,7 @@
 ## Global Constraints
 
 - All prose (docs, journal entries, commit messages) is British English, with no em dashes.
-- No comments in code.
+- Code carries explanatory comments in British English (this reverses an earlier "no comments" rule; see `JOURNAL.md`, 2026-07-16).
 - No automated test suite for this plan. Verification steps are manual: run a command, read the output, confirm it matches what is described.
 - Do not run `git add`, `git commit`, or `git push` at any point in this plan. All files are left in the working tree, unstaged, for the user to review and commit themselves.
 - Model id for all Groq calls: `llama-3.3-70b-versatile`.

@@ -24,7 +24,7 @@ SpendWeiss is a multi phase learning project that builds up an agentic AI system
 - `uv init` to create the backend project, `uv add <package>` for dependencies, `uv run agent.py` to execute.
 - One git branch per phase (for example `phase-0-setup`, `phase-1-raw-react`), merged into `main` once that phase is built and manually verified. No `git push` or PR creation without an explicit request each time, per user instruction.
 - All prose in this repository (docs, journal, commit messages, code comments if any are ever unavoidable) is written in British English, with no em dashes.
-- No comments in code. Identifiers should be descriptive enough to make comments unnecessary.
+- Code carries explanatory comments in British English, since this is a learning project and the comments are part of what makes the mechanics visible. This reverses an earlier "no comments" rule from the first version of this spec; see the note in `JOURNAL.md` dated 2026-07-16.
 
 ## Repository layout
 
