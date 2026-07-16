@@ -25,8 +25,24 @@ class AgentState(TypedDict):
     messages: Annotated[list, add_messages]
 
 
-_model = ChatGroq(model=MODEL, api_key=os.environ["GROQ_API_KEY"])
-_model_with_tools = _model.bind_tools([check_card_rewards, check_offers])
+# Built lazily, on first use inside reason(), not here at import time.
+# Phase 2 and 3 avoided this problem by only constructing ChatGroq inside
+# main(), which this module doesn't have, since graph.py is imported by
+# tests that never call the live model at all (test_phase4_graph.py only
+# inspects the graph's shape and calls retrieve_memory directly). Building
+# the client at import time meant simply importing this module for those
+# tests required a real GROQ_API_KEY, which is not set in CI and should
+# not need to be, since nothing in the automated test suite calls the
+# model.
+_model_with_tools = None
+
+
+def _get_model_with_tools():
+    global _model_with_tools
+    if _model_with_tools is None:
+        model = ChatGroq(model=MODEL, api_key=os.environ["GROQ_API_KEY"])
+        _model_with_tools = model.bind_tools([check_card_rewards, check_offers])
+    return _model_with_tools
 
 
 def retrieve_memory(state: AgentState) -> dict:
@@ -43,7 +59,7 @@ def retrieve_memory(state: AgentState) -> dict:
 
 
 def reason(state: AgentState) -> dict:
-    response = _model_with_tools.invoke(state["messages"])
+    response = _get_model_with_tools().invoke(state["messages"])
     return {"messages": [response]}
 
 
