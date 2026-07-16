@@ -1,1 +1,1 @@
-# Spendweiss
+# SpendWeiss
