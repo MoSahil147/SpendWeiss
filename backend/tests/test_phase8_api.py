@@ -1,9 +1,21 @@
 from fastapi.testclient import TestClient
 
 from phase8_api import sessions
-from phase8_api.app import _extract_reply, app
+from phase8_api.app import _extract_reply, _format_reply, app
 
 client = TestClient(app)
+
+
+def test_cors_allows_vite_dev_origin():
+    response = client.options(
+        "/query",
+        headers={
+            "Origin": "http://localhost:5173",
+            "Access-Control-Request-Method": "POST",
+        },
+    )
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "http://localhost:5173"
 
 
 def test_graph_structure_includes_outer_and_inner_nodes():
@@ -36,16 +48,17 @@ def test_query_completed_flow_with_stubbed_graph():
         "classification": "card_optimizer",
         "trace": [{"node": "respond", "graph": "card_optimizer", "summary": "respond: Use HDFC Millennia..."}],
     }
-    with patch("phase8_api.app.approval_graph.invoke", return_value=fake_result):
+    with patch("phase8_api.app.approval_graph.invoke", return_value=fake_result) as mock_invoke:
         response = client.post("/query", json={"message": "Best card for a ₹2000 grocery run?"})
 
     assert response.status_code == 200
     body = response.json()
     assert body["status"] == "completed"
-    assert body["reply"] == "Use HDFC Millennia for this purchase."
+    assert body["reply"] == "For this purchase, I would recommend HDFC Millennia."
     assert body["classification"] == "card_optimizer"
     assert len(body["trace"]) == 1
     assert body["thread_id"]
+    mock_invoke.assert_called_once()
 
 
 def test_query_pending_then_approve_flow_with_stubbed_graph():
@@ -55,7 +68,7 @@ def test_query_pending_then_approve_flow_with_stubbed_graph():
         "trace": [{"node": "dispatch_node", "graph": "outer", "summary": "dispatch_node ran"}],
     }
     approved_result = {
-        "messages": [{"role": "assistant", "content": "Approved: use HDFC Infinia."}],
+        "messages": [{"role": "assistant", "content": "Use HDFC Infinia."}],
         "classification": "card_optimizer",
         "trace": pending_result["trace"] + [{"node": "approval_gate", "graph": "outer", "summary": "approved"}],
     }
@@ -65,6 +78,7 @@ def test_query_pending_then_approve_flow_with_stubbed_graph():
     assert query_response.status_code == 200
     body = query_response.json()
     assert body["status"] == "pending_approval"
+    assert body["classification"] == "card_optimizer"
     thread_id = body["thread_id"]
 
     with patch("phase8_api.app.approval_graph.invoke", return_value=approved_result):
@@ -72,7 +86,7 @@ def test_query_pending_then_approve_flow_with_stubbed_graph():
     assert approve_response.status_code == 200
     approve_body = approve_response.json()
     assert approve_body["status"] == "completed"
-    assert approve_body["reply"] == "Approved: use HDFC Infinia."
+    assert approve_body["reply"] == "For this purchase, I would recommend HDFC Infinia."
     assert len(approve_body["trace"]) == 2
 
 
@@ -142,3 +156,78 @@ def test_extract_reply_skips_trailing_critic_revise_verdict():
 def test_extract_reply_returns_plain_message_when_no_critic_verdict_present():
     messages = [{"role": "assistant", "content": "The user declined this recommendation. No action was taken."}]
     assert _extract_reply(messages) == "The user declined this recommendation. No action was taken."
+
+
+def test_format_reply_turns_raw_card_suggestion_into_customer_facing_recommendation():
+    assert _format_reply("Use HDFC Millennia for this purchase.") == "For this purchase, I would recommend HDFC Millennia."
+
+
+def test_format_reply_replaces_placeholder_card_identifiers_with_plain_language():
+    raw_reply = 'Considering the user\'s past transactions, they have been using "card_a" for groceries and have a history of transactions with it.'
+    assert _format_reply(raw_reply) == "For this purchase, I would recommend the option that best fits your spending habits and rewards."
+
+
+def test_format_reply_uses_card_tool_results_to_restore_specific_card_name():
+    raw_reply = 'Considering the user\'s past transactions, they have been using "card_a" for groceries and have a history of transactions with it.'
+    messages = [
+        {
+            "role": "tool",
+            "name": "check_card_rewards",
+            "content": '[{"card_id":"card_b","card_name":"Axis Bank Magnus Credit Card","reward_rate":0.012}]',
+        }
+    ]
+    assert _format_reply(raw_reply, messages) == "For this purchase, I would recommend Axis Bank Magnus Credit Card."
+
+
+def test_format_reply_preserves_specific_card_names():
+    raw_reply = "The best option is HDFC Millennia because the grocery rewards are strongest."
+    assert _format_reply(raw_reply) == raw_reply
+
+
+def test_format_reply_strips_trailing_raw_id_but_preserves_elaborate_explanation():
+    # A raw internal id trailing right after the real card name (e.g. the
+    # model wrote "HDFC Millennia Credit Card (card_a)") must not nuke the
+    # whole explanation the way a bare, unresolved id does — only the
+    # parenthetical annotation itself should go.
+    raw_reply = (
+        "I recommend the HDFC Millennia Credit Card (card_a) for this purchase. "
+        "It offers 1% cashback plus a 10% active offer at BigBasket, which beats HDFC Infinia's 3.3% "
+        "base rate once the offer is applied. The annual fee is Rs 1000."
+    )
+    assert _format_reply(raw_reply) == (
+        "I recommend the HDFC Millennia Credit Card for this purchase. "
+        "It offers 1% cashback plus a 10% active offer at BigBasket, which beats HDFC Infinia's 3.3% "
+        "base rate once the offer is applied. The annual fee is Rs 1000."
+    )
+
+
+def test_format_reply_resolves_quoted_raw_ids_referenced_while_discussing_past_transactions():
+    # The model can quote a raw internal id while reasoning about *past*
+    # transaction history (retrieve_memory's "card_used" field), not just
+    # while naming its own recommendation. If check_card_rewards's tool
+    # payload resolved that id to a real name, the whole elaborate answer
+    # should survive with the id swapped for the name — not get discarded
+    # just because a bare "card_x" token showed up somewhere in the text.
+    raw_reply = (
+        'I recommend the ICICI Amazon Pay Credit Card for fuel purchases. This card offers a 1% reward rate, '
+        'the highest among the available options. Although "card_c" has been used for fuel purchases in the past, '
+        'its reward rate is also 1%, matching the recommendation. "Card_e" has also been used for fuel purchases, '
+        "but its reward rate is 0%, making the ICICI Amazon Pay Credit Card the better option."
+    )
+    messages = [
+        {
+            "role": "tool",
+            "name": "check_card_rewards",
+            "content": (
+                '[{"card_id":"card_c","card_name":"IDFC FIRST Select Credit Card","reward_rate":0.01},'
+                '{"card_id":"card_e","card_name":"SBI Cashback Credit Card","reward_rate":0.0}]'
+            ),
+        }
+    ]
+
+    assert _format_reply(raw_reply, messages) == (
+        'I recommend the ICICI Amazon Pay Credit Card for fuel purchases. This card offers a 1% reward rate, '
+        'the highest among the available options. Although IDFC FIRST Select Credit Card has been used for fuel purchases in the past, '
+        'its reward rate is also 1%, matching the recommendation. SBI Cashback Credit Card has also been used for fuel purchases, '
+        "but its reward rate is 0%, making the ICICI Amazon Pay Credit Card the better option."
+    )
