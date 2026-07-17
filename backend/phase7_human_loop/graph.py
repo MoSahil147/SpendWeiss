@@ -20,14 +20,15 @@ class ApprovalState(TypedDict):
     classification: str
     pending_action: Optional[str]
     approved: bool
+    trace: list
 
 
 def dispatch_node(state: ApprovalState) -> dict:
     messages = state["messages"] + [{"role": "user", "content": state["query"]}]
     raw_classification = classify_query(state["query"])
     classification = _normalise_classification(raw_classification)
-    final_messages = dispatch(classification, messages)
-    return {"messages": final_messages, "classification": classification}
+    final_messages, trace = dispatch(classification, messages)
+    return {"messages": final_messages, "classification": classification, "trace": trace}
 
 
 def _describe_pending_action(state: ApprovalState) -> Optional[str]:
@@ -46,18 +47,21 @@ def _describe_pending_action(state: ApprovalState) -> Optional[str]:
 
 def approval_gate(state: ApprovalState) -> dict:
     pending_action = _describe_pending_action(state)
+    trace_so_far = state.get("trace", [])
+
     if pending_action is None:
-        return {"pending_action": None, "approved": True}
+        return {"pending_action": None, "approved": True, "trace": trace_so_far + [{"node": "approval_gate", "graph": "outer", "summary": "no approval needed"}]}
 
     approved = interrupt({"action": pending_action})
 
     if approved:
-        return {"pending_action": pending_action, "approved": True}
+        return {"pending_action": pending_action, "approved": True, "trace": trace_so_far + [{"node": "approval_gate", "graph": "outer", "summary": "approved"}]}
 
     return {
         "pending_action": pending_action,
         "approved": False,
         "messages": state["messages"] + [{"role": "assistant", "content": "The user declined this recommendation. No action was taken."}],
+        "trace": trace_so_far + [{"node": "approval_gate", "graph": "outer", "summary": "declined"}],
     }
 
 

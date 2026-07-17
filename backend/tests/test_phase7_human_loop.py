@@ -50,3 +50,8 @@ def test_graph_has_dispatch_and_approval_nodes():
 def test_graph_edges_run_dispatch_before_approval():
     edges = {(edge.source, edge.target) for edge in graph.get_graph().edges}
     assert ("dispatch_node", "approval_gate") in edges
+
+
+def test_dispatch_node_populates_trace():
+    from phase7_human_loop.graph import ApprovalState
+    assert "trace" in ApprovalState.__annotations__
