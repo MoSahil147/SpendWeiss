@@ -1,5 +1,5 @@
 import os
-from threading import Lock
+import random
 
 from groq import BadRequestError, RateLimitError
 
@@ -17,9 +17,6 @@ _KEY_ENV_VARS = (
 # sample — a different key wouldn't fix it, since it's the same model and
 # prompt either way.
 _TOOL_USE_FAILED_RETRIES_PER_KEY = 2
-
-_fallback_index = 0
-_key_lock = Lock()
 
 
 def _is_tool_use_failed(error: BadRequestError) -> bool:
@@ -43,9 +40,12 @@ def get_groq_api_key() -> str:
     if not keys:
         raise KeyError("GROQ_API_KEY")
 
-    # The primary key is always preferred for model construction. Fallback
-    # rotation is handled separately when we are actively retrying a call.
-    return keys[0]
+    # Picked at random each call rather than always the first configured
+    # key, so a single key is not disproportionately hammered just
+    # because it happens to be listed first. Every configured key gets an
+    # even share of traffic over many calls, like a dice roll each time,
+    # not a fixed preference order.
+    return random.choice(keys)
 
 
 def invoke_with_groq_fallback(operation):
@@ -53,18 +53,11 @@ def invoke_with_groq_fallback(operation):
     if not keys:
         raise KeyError("GROQ_API_KEY")
 
-    primary_key, fallback_keys = keys[0], keys[1:]
-
-    global _fallback_index
-    with _key_lock:
-        if fallback_keys:
-            start_index = _fallback_index % len(fallback_keys)
-            rotated_fallbacks = fallback_keys[start_index:] + fallback_keys[:start_index]
-            _fallback_index = (start_index + 1) % len(fallback_keys)
-        else:
-            rotated_fallbacks = []
-
-    order = [primary_key, *rotated_fallbacks]
+    # A fresh random order every call, not a fixed primary-then-rotate
+    # sequence. Any configured key can be the one tried first, so load
+    # spreads evenly across all of them instead of concentrating on
+    # whichever one happens to be listed first in .env.
+    order = random.sample(keys, len(keys))
 
     last_error = None
     for key in order:

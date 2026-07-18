@@ -6,6 +6,12 @@ from phase8_api.app import _extract_reply, _format_reply, app
 client = TestClient(app)
 
 
+def test_status_returns_ok():
+    response = client.get("/status")
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok"}
+
+
 def test_cors_allows_vite_dev_origin():
     response = client.options(
         "/query",
