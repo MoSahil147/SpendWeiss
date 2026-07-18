@@ -116,8 +116,8 @@ def test_invoke_with_groq_fallback_retries_same_key_on_tool_use_failed(monkeypat
         return "ok"
 
     # A malformed tool call is a transient generation glitch, not a bad
-    # key, so retries stay on the same key rather than rotating — a
-    # different key wouldn't change what the model generates. Only one
+    # key, so retries stay on the same key rather than rotating. A
+    # different key would not change what the model generates. Only one
     # key is configured here anyway, so there is nothing to randomise.
     assert groq_client.invoke_with_groq_fallback(operation) == "ok"
     assert calls == ["key-one", "key-one", "key-one"]
@@ -176,6 +176,6 @@ def test_invoke_with_groq_fallback_raises_a_real_bad_request_immediately_without
     with pytest.raises(BadRequestError):
         groq_client.invoke_with_groq_fallback(operation)
 
-    # Not a tool_use_failed error, so no same-key retry — just one attempt
+    # Not a tool_use_failed error, so no same-key retry. Just one attempt
     # per configured key before giving up.
     assert calls == ["key-one", "key-two"]

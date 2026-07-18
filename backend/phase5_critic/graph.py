@@ -21,7 +21,7 @@ load_dotenv()
 MODEL = "llama-3.3-70b-versatile"
 
 CRITIC_PROMPT = """You are a careful reviewer checking a card recommendation for correctness.
-All amounts are in Indian Rupees — if you cite one, write it as ₹<amount>, never with a $ sign.
+All amounts are in Indian Rupees. If you cite one, write it as ₹<amount>, never with a $ sign.
 Review the tool results already shown in this conversation (card reward
 rates, active offers, and any past transaction context) against the final
 recommendation that was just given. Check whether the recommendation

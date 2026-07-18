@@ -1,7 +1,9 @@
+from unittest.mock import patch
+
 from fastapi.testclient import TestClient
 
 from phase8_api import sessions
-from phase8_api.app import _extract_reply, _format_reply, app
+from phase8_api.app import app
 
 client = TestClient(app)
 
@@ -43,9 +45,6 @@ def test_graph_structure_includes_critic_loop_back_edge():
 def test_approve_unknown_thread_returns_404():
     response = client.post("/approve/never-seen-thread", json={"approved": True})
     assert response.status_code == 404
-
-
-from unittest.mock import patch
 
 
 def test_query_completed_flow_with_stubbed_graph():
@@ -139,101 +138,3 @@ def test_pending_tracking():
     sessions.clear_pending(thread_id)
     assert sessions.is_pending(thread_id) is False
 
-
-def test_extract_reply_skips_trailing_critic_approved_verdict():
-    messages = [
-        {"role": "assistant", "content": "Use HDFC Millennia for this purchase."},
-        {"role": "assistant", "content": "APPROVED"},
-    ]
-    assert _extract_reply(messages) == "Use HDFC Millennia for this purchase."
-
-
-def test_extract_reply_skips_trailing_critic_revise_verdict():
-    messages = [
-        {"role": "assistant", "content": "Use HDFC Infinia."},
-        {"role": "assistant", "content": "REVISE: missed a better offer"},
-        {"role": "user", "content": "A reviewer flagged an issue..."},
-        {"role": "assistant", "content": "Use HDFC Millennia instead."},
-        {"role": "assistant", "content": "APPROVED"},
-    ]
-    assert _extract_reply(messages) == "Use HDFC Millennia instead."
-
-
-def test_extract_reply_returns_plain_message_when_no_critic_verdict_present():
-    messages = [{"role": "assistant", "content": "The user declined this recommendation. No action was taken."}]
-    assert _extract_reply(messages) == "The user declined this recommendation. No action was taken."
-
-
-def test_format_reply_turns_raw_card_suggestion_into_customer_facing_recommendation():
-    assert _format_reply("Use HDFC Millennia for this purchase.") == "For this purchase, I would recommend HDFC Millennia."
-
-
-def test_format_reply_replaces_placeholder_card_identifiers_with_plain_language():
-    raw_reply = 'Considering the user\'s past transactions, they have been using "card_a" for groceries and have a history of transactions with it.'
-    assert _format_reply(raw_reply) == "For this purchase, I would recommend the option that best fits your spending habits and rewards."
-
-
-def test_format_reply_uses_card_tool_results_to_restore_specific_card_name():
-    raw_reply = 'Considering the user\'s past transactions, they have been using "card_a" for groceries and have a history of transactions with it.'
-    messages = [
-        {
-            "role": "tool",
-            "name": "check_card_rewards",
-            "content": '[{"card_id":"card_b","card_name":"Axis Bank Magnus Credit Card","reward_rate":0.012}]',
-        }
-    ]
-    assert _format_reply(raw_reply, messages) == "For this purchase, I would recommend Axis Bank Magnus Credit Card."
-
-
-def test_format_reply_preserves_specific_card_names():
-    raw_reply = "The best option is HDFC Millennia because the grocery rewards are strongest."
-    assert _format_reply(raw_reply) == raw_reply
-
-
-def test_format_reply_strips_trailing_raw_id_but_preserves_elaborate_explanation():
-    # A raw internal id trailing right after the real card name (e.g. the
-    # model wrote "HDFC Millennia Credit Card (card_a)") must not nuke the
-    # whole explanation the way a bare, unresolved id does — only the
-    # parenthetical annotation itself should go.
-    raw_reply = (
-        "I recommend the HDFC Millennia Credit Card (card_a) for this purchase. "
-        "It offers 1% cashback plus a 10% active offer at BigBasket, which beats HDFC Infinia's 3.3% "
-        "base rate once the offer is applied. The annual fee is Rs 1000."
-    )
-    assert _format_reply(raw_reply) == (
-        "I recommend the HDFC Millennia Credit Card for this purchase. "
-        "It offers 1% cashback plus a 10% active offer at BigBasket, which beats HDFC Infinia's 3.3% "
-        "base rate once the offer is applied. The annual fee is Rs 1000."
-    )
-
-
-def test_format_reply_resolves_quoted_raw_ids_referenced_while_discussing_past_transactions():
-    # The model can quote a raw internal id while reasoning about *past*
-    # transaction history (retrieve_memory's "card_used" field), not just
-    # while naming its own recommendation. If check_card_rewards's tool
-    # payload resolved that id to a real name, the whole elaborate answer
-    # should survive with the id swapped for the name — not get discarded
-    # just because a bare "card_x" token showed up somewhere in the text.
-    raw_reply = (
-        'I recommend the ICICI Amazon Pay Credit Card for fuel purchases. This card offers a 1% reward rate, '
-        'the highest among the available options. Although "card_c" has been used for fuel purchases in the past, '
-        'its reward rate is also 1%, matching the recommendation. "Card_e" has also been used for fuel purchases, '
-        "but its reward rate is 0%, making the ICICI Amazon Pay Credit Card the better option."
-    )
-    messages = [
-        {
-            "role": "tool",
-            "name": "check_card_rewards",
-            "content": (
-                '[{"card_id":"card_c","card_name":"IDFC FIRST Select Credit Card","reward_rate":0.01},'
-                '{"card_id":"card_e","card_name":"SBI Cashback Credit Card","reward_rate":0.0}]'
-            ),
-        }
-    ]
-
-    assert _format_reply(raw_reply, messages) == (
-        'I recommend the ICICI Amazon Pay Credit Card for fuel purchases. This card offers a 1% reward rate, '
-        'the highest among the available options. Although IDFC FIRST Select Credit Card has been used for fuel purchases in the past, '
-        'its reward rate is also 1%, matching the recommendation. SBI Cashback Credit Card has also been used for fuel purchases, '
-        "but its reward rate is 0%, making the ICICI Amazon Pay Credit Card the better option."
-    )

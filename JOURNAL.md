@@ -272,4 +272,31 @@ Two real ones, both found by actually running queries, not by the test suite. Fi
 The project's recurring lesson about repeated occurrences (a node or event that can legitimately happen more than once breaks anything that reaches for "the" occurrence) showed up in a new form this pass: `_format_reply`'s bug wasn't about picking the wrong occurrence of a repeated *message*, it was about a *substring* pattern match being too coarse to distinguish "this text is only a raw id" from "this text mentions a raw id in passing while otherwise being complete and correct" — the fix in both cases is the same shape, narrow the match to the actual failure condition instead of a proxy for it. Also confirmed directly against the installed Groq SDK source rather than assumed: `APIStatusError.body` is the parsed JSON response body when the API returned valid JSON, which is what made a precise `tool_use_failed` check possible instead of a fragile string-match on the exception's `str()`.
 
 **Next up:**
-No further planned work — this pass was reactive, driven by live usage surfacing real gaps (a fake agentic story, terse answers, unreadable overlapping arrows, a rate-limit cliff) rather than a new phase. Worth revisiting if further live use surfaces anything else in this vein.
+No further planned work. This pass was reactive, driven by live usage surfacing real gaps (a fake agentic story, terse answers, unreadable overlapping arrows, a rate-limit cliff) rather than a new phase. Worth revisiting if further live use surfaces anything else in this vein.
+
+## Cleanup pass: simplification, modularity and regression tests (2026-07-18)
+
+**What I built:**
+A dedicated cleanup pass over the backend, on its own branch off `main`, with no functional change intended: every backend module was reviewed for prose quality (em dashes replaced with proper punctuation throughout, matching a request for plain, professional writing) and for real duplication or dead logic, not just style.
+
+The most substantial change split `phase8_api/app.py`, which had grown to mix FastAPI routing with about 150 lines of pure text-processing logic, into three files: `phase8_api/app.py` (routing only), `phase8_api/reply_formatting.py` (the reply-cleanup logic: `extract_reply`, `format_reply`, and their helpers), and `phase8_api/graph_structure.py` (the `/graph/structure` builder). None of the extracted logic needs FastAPI or a live model call, so it is now testable in complete isolation, and `app.py` itself dropped from 295 lines to about 100.
+
+`phase6_multiagent/supervisor.py`'s `_summarize_update` and `_detail_for_update` were near-duplicates of each other, both re-extracting the same three things (a node's last message, its tool calls if any, its content) with their own copy of the tool-call-rendering loop. Consolidated into a shared `_last_message_info` extractor and a shared `_render_tool_calls` formatter, with the two public functions reduced to just their own string formatting on top.
+
+`phase6_multiagent/subscription_hunter.py`'s `get_subscription_hunter_agent` had two near-identical `create_agent(...)` construction blocks (one for the cached singleton path, one for the per-key rebuild path); factored out into a shared `_build_agent` helper.
+
+Also found and removed one genuinely dead branch while reading closely: `phase8_api/reply_formatting.py`'s `format_reply` (in its pre-split location in `app.py`) had an `if remainder.lower().startswith("card"): return X else: return X` where both branches returned the exact same string. Removed the redundant branch; added a regression test (`test_format_reply_handles_a_remainder_that_already_starts_with_card`) pinning the behaviour so a future edit cannot silently reintroduce a divergence between the two paths.
+
+Added direct unit tests for `_all_tool_payloads` and `_card_id_to_name_map` in the new `tests/test_reply_formatting.py`, which previously only had indirect coverage through `format_reply`'s own tests.
+
+**Key decisions:**
+No behavioural change was the constraint throughout: every simplification was verified against the full test suite (79 passing, unchanged expected outputs) and against live queries run directly against the real agent, not just the mocked test paths, before being considered done. The module split follows the same reasoning every earlier phase used for separating pure logic from live-call logic: `reply_formatting.py` and `graph_structure.py` need no `GROQ_API_KEY` and no FastAPI app to test, so pulling them out of `app.py` makes that boundary explicit rather than implicit.
+
+**Gotchas and bugs hit:**
+None new. This was a read-carefully, verify-after-every-change pass rather than a debugging one; the one real find (the dead `startswith("card")` branch) was caught by reading the function's two return paths side by side, not by a failing test, since both paths already produced identical output and so no test could have failed either way.
+
+**What I learned:**
+Duplication is easiest to spot right after a feature grows through several rounds of live-bug-fixing in the same sitting (the reply-formatting and trace-summarising logic both grew this way, fix by fix, until a single quiet read-through of the finished shape made the repeated blocks obvious). Deferring a cleanup pass until the functionality had actually stabilised, rather than refactoring mid-fix, meant this pass could split and test the code with real confidence rather than guessing at not-yet-final behaviour.
+
+**Next up:**
+A separate, code-change-free review of production-readiness opportunities (caching, observability, session persistence, and so on) was requested alongside this cleanup and is written up as a standalone list rather than implemented, pending a decision on which of them are worth doing for this project's actual goals.
