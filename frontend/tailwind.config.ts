@@ -5,7 +5,7 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Warm paper ground + crisp card surfaces — deliberately not a cool gray.
+        // Warm paper ground and crisp card surfaces, deliberately not a cool gray.
         paper: "#F5F4EF",
         surface: {
           DEFAULT: "#FFFFFF",
@@ -15,13 +15,13 @@ export default {
         ink: "#14211D",
         muted: "#5C6B66",
         line: "#E5E1D6",
-        // Peacock teal — the brand + the "this decision happened" colour.
+        // Peacock teal: the brand colour and the "this decision happened" colour.
         teal: {
           DEFAULT: "#0C6B5E",
           deep: "#08463E",
           tint: "#E1EFEB",
         },
-        // Muted marigold-gold — data / ₹ highlight accent (premium, not neon).
+        // Muted marigold gold, a data/₹ highlight accent (premium, not neon).
         gold: {
           DEFAULT: "#C0871B",
           tint: "#F6ECD5",

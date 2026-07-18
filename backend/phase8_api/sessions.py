@@ -1,7 +1,7 @@
 # A plain in-memory, thread-keyed session store, playing the same role
 # Phase 7's CLI local `messages` variable plays, just addressable by
 # thread_id instead of scoped to one process's loop. No persistence
-# across restarts, on purpose, matching Phase 7's InMemorySaver — this is
+# across restarts, on purpose, matching Phase 7's InMemorySaver. This is
 # a dev/demo API, not a production service.
 import threading
 import uuid

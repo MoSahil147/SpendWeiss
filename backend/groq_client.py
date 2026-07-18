@@ -9,30 +9,22 @@ _KEY_ENV_VARS = (
     "GROQ_API_KEY2",
 )
 
-# llama-3.3-70b-versatile occasionally emits a malformed tool call (e.g.
-# literal "<function=...>" text instead of a structured tool_calls
-# response), which Groq rejects as a 400 tool_use_failed error. This is a
-# transient generation glitch, not a bad key or a bad prompt, and retrying
-# the exact same call with the exact same key usually succeeds on the next
-# sample — a different key wouldn't fix it, since it's the same model and
-# prompt either way.
+# llama-3.3-70b-versatile occasionally emits a malformed tool call (literal
+# "<function=...>" text instead of a structured tool_calls response), which
+# Groq rejects as a 400 tool_use_failed error. This is a transient sampling
+# glitch, not a bad key or a bad prompt, so retrying the same call on the
+# same key usually succeeds next time. A different key would not help,
+# since it is the same model and prompt either way.
 _TOOL_USE_FAILED_RETRIES_PER_KEY = 2
 
 
 def _is_tool_use_failed(error: BadRequestError) -> bool:
     body = error.body
-    if isinstance(body, dict):
-        return body.get("error", {}).get("code") == "tool_use_failed"
-    return False
+    return isinstance(body, dict) and body.get("error", {}).get("code") == "tool_use_failed"
 
 
 def _configured_keys() -> list[str]:
-    keys = []
-    for env_var in _KEY_ENV_VARS:
-        value = os.getenv(env_var)
-        if value:
-            keys.append(value)
-    return keys
+    return [os.getenv(env_var) for env_var in _KEY_ENV_VARS if os.getenv(env_var)]
 
 
 def get_groq_api_key() -> str:
@@ -40,11 +32,8 @@ def get_groq_api_key() -> str:
     if not keys:
         raise KeyError("GROQ_API_KEY")
 
-    # Picked at random each call rather than always the first configured
-    # key, so a single key is not disproportionately hammered just
-    # because it happens to be listed first. Every configured key gets an
-    # even share of traffic over many calls, like a dice roll each time,
-    # not a fixed preference order.
+    # Picked at random rather than always the first configured key, so no
+    # single key is hammered just for being listed first.
     return random.choice(keys)
 
 
@@ -53,10 +42,8 @@ def invoke_with_groq_fallback(operation):
     if not keys:
         raise KeyError("GROQ_API_KEY")
 
-    # A fresh random order every call, not a fixed primary-then-rotate
-    # sequence. Any configured key can be the one tried first, so load
-    # spreads evenly across all of them instead of concentrating on
-    # whichever one happens to be listed first in .env.
+    # A fresh random order per call, not a fixed primary-then-rotate
+    # sequence, so load spreads evenly across all configured keys.
     order = random.sample(keys, len(keys))
 
     last_error = None
@@ -70,7 +57,7 @@ def invoke_with_groq_fallback(operation):
             except BadRequestError as error:
                 last_error = error
                 if _is_tool_use_failed(error) and attempt < _TOOL_USE_FAILED_RETRIES_PER_KEY:
-                    continue  # same key, same model: just try sampling again
-                break  # a real bad request, or retries exhausted — move to the next key
+                    continue  # same key, same model: just sample again
+                break  # a real bad request, or retries exhausted: move to the next key
 
     raise last_error if last_error is not None else RuntimeError("Groq request failed")

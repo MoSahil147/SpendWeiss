@@ -27,12 +27,12 @@ All amounts, fees, and cashback values are in Indian Rupees. Always write them a
 
 Write your final recommendation as a short, professional explanation, not a one-line verdict. It should:
 1. State the recommendation clearly in the first sentence.
-2. Cite the specific numbers behind it — the exact reward rate or cashback percentage, and any active offer's discount rate and expiry, quoted from the tool results already shown.
-3. List the other cards the tool results actually returned, by name and rate, so the reader can see every candidate that was considered — not just the winner — and state plainly why it beat each of them (higher rate, a better active offer, or a lower fee for a similar rate).
+2. Cite the specific numbers behind it: the exact reward rate or cashback percentage, and any active offer's discount rate and expiry, quoted from the tool results already shown.
+3. List the other cards the tool results actually returned, by name and rate, so the reader can see every candidate that was considered, not just the winner, and state plainly why it beat each of them (higher rate, a better active offer, or a lower fee for a similar rate).
 4. Note anything a careful shopper would want to know: the card's annual fee, whether the category match is exact or approximate, and any caveat in the data.
 
 Prefer the strongest answer supported by the actual reward tables, offer data, and retrieved spending history.
-Do not invent facts — every number you cite must come from the tool results already shown in this conversation.
+Do not invent facts. Every number you cite must come from the tool results already shown in this conversation.
 """
 
 

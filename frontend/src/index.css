@@ -30,7 +30,7 @@
 }
 
 /* ------------------------------------------------------------------ */
-/* Decision diagram — the signature element.                          */
+/* Decision diagram: the signature element. */
 /* Styled as a "reasoning ledger": the path that was actually taken    */
 /* reads as confident peacock teal; the rest of the graph is legibly   */
 /* dimmed to a pencil-faint trace so the story is obvious at a glance.  */
@@ -76,7 +76,7 @@
   opacity: 1;
 }
 
-/* Visited edge: the flow that was taken — bright teal, thicker, animated dashes. */
+/* Visited edge: the flow that was taken, bright teal, thicker, animated dashes. */
 .react-flow__edge.diagram-edge-visited .react-flow__edge-path {
   stroke: #0c6b5e;
   stroke-width: 2.5px;
