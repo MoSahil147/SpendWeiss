@@ -1,4 +1,5 @@
 import json
+import os
 import re
 from typing import Optional
 
@@ -13,9 +14,16 @@ from phase8_api import sessions
 
 app = FastAPI(title="SpendWeiss API")
 
+# The two local dev origins always work; a deployed frontend origin (e.g.
+# https://your-app.netlify.app) is added via CORS_ORIGINS so the deployed
+# backend doesn't need a code change and redeploy just to allow it —
+# CORS_ORIGINS is a comma-separated list, set as a Render env var.
+_DEFAULT_ORIGINS = ["http://localhost:5173", "http://127.0.0.1:5173"]
+_extra_origins = [origin.strip() for origin in os.getenv("CORS_ORIGINS", "").split(",") if origin.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=_DEFAULT_ORIGINS + _extra_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
