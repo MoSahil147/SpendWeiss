@@ -71,6 +71,15 @@ def _build_graph_structure() -> dict:
     return {"nodes": nodes, "edges": edges}
 
 
+@app.get("/status")
+def status() -> dict:
+    # Deliberately does no graph introspection and no model call, so an
+    # uptime check or Render's own health probe gets a fast, cheap answer
+    # that only confirms the process is up, not that a live GROQ_API_KEY
+    # or a real model round trip is working.
+    return {"status": "ok"}
+
+
 @app.get("/graph/structure")
 def graph_structure() -> dict:
     return _build_graph_structure()
