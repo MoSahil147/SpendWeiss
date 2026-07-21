@@ -29,3 +29,6 @@ backend/phase3_memory/chroma_data/
 
 # Superpowers scratch (spec/plan brainstorming + subagent-driven-dev progress ledgers)
 .superpowers/
+
+# Raw demo recording (gif in assets/ is committed, source mp4 is not)
+assets/*.mp4

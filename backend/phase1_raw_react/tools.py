@@ -7,12 +7,17 @@ from pathlib import Path
 # The data files live one directory up, in backend/data/, alongside this
 # phase1_raw_react folder rather than inside it, since later phases will
 # reuse the same data.
-DATA_DIR = Path(__file__).resolve().parent.parent / "data"
+DATA_DIR = Path(__file__).resolve().parent.parent / "data" 
+#  Path(__file__) — path to this file (tools.py)
+# - .resolve() — makes it absolute (resolves any symlinks/relative bits)
+# - .parent — the folder containing tools.py (backend/phase1_raw_react/)
+# - .parent again — one level up (backend/)
+# - / "data" — appends data, giving backend/data/
 
 
 def load_cards():
     with open(DATA_DIR / "cards.json") as data_file:
-        return json.load(data_file)
+        return json.load(data_file) 
 
 
 def load_offers():

@@ -18,6 +18,8 @@ All amounts are shown in Indian Rupees. Nothing is a keyword-matched shortcut; e
 
 ## How it is built
 
+![SpendWeiss demo](./assets/Demo.gif)
+
 This is a learning project: each phase re-implements or extends the same agent using a different technique, and every phase's code is kept in the repository (not deleted or rewritten) as a record of the progression. The path runs from a manual ReAct loop, through LangChain, persistent memory, an explicit LangGraph state machine, a critic/reflection node, a multi-agent supervisor, human-in-the-loop approval and a served API, to this website. Full details of what was built and learned at each step are in [`JOURNAL.md`](./JOURNAL.md).
 
 **Backend:** Python, FastAPI, LangGraph, LangChain, Groq (`llama-3.3-70b-versatile` for reasoning, `llama-3.1-8b-instant` for classification), and ChromaDB for transaction memory. Multi-key round-robin across `GROQ_API_KEY`/`GROQ_API_KEY1`/`GROQ_API_KEY2` provides resilience on the free tier.
